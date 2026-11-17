@@ -12,17 +12,26 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
-      - uses: gradle/actions/setup-gradle@v4
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
         with:
-          gradle-version: 8.7
+          channel: stable
       - name: Build
         run: |
-          unzip -o SwipeGallery.zip
-          cd SwipeGallery
-          gradle assembleDebug --no-daemon
-      - name: Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: gh release create "v${{ github.run_number }}" SwipeGallery/app/build/outputs/apk/debug/app-debug.apk --title "Build ${{ github.run_number }}"
+          flutter create --org com.hotspot --project-name hotspot_music --platforms=android app
+          cp $(ls lib/main.dart main.dart 2>/dev/null | head -n 1) app/lib/main.dart
+          cd app
+          flutter pub add just_audio:^0.10.0 file_picker:^10.0.0 flutter_foreground_task:^9.0.0
+          M=android/app/src/main/AndroidManifest.xml
+          P=""
+          for p in INTERNET WAKE_LOCK FOREGROUND_SERVICE FOREGROUND_SERVICE_MEDIA_PLAYBACK POST_NOTIFICATIONS REQUEST_IGNORE_BATTERY_OPTIMIZATIONS; do
+            P="$P<uses-permission android:name=\"android.permission.$p\"/>\n"
+          done
+          sed -i "s#<application#${P}<application#" $M
+          sed -i 's#</application>#<service android:name="com.pravera.flutter_foreground_task.service.ForegroundService" android:foregroundServiceType="mediaPlayback" android:exported="false"/>\n    </application>#' $M
+          flutter build apk --release
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          files: app/build/app/outputs/flutter-apk/app-release.apk
