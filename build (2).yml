@@ -1,0 +1,37 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build
+        run: |
+          flutter create --org com.hotspot --project-name hotspot_music --platforms=android app
+          cp $(ls lib/main.dart main.dart 2>/dev/null | head -n 1) app/lib/main.dart
+          cd app
+          flutter pub add just_audio:^0.10.0 file_picker:^10.0.0 flutter_foreground_task:^9.0.0
+          M=android/app/src/main/AndroidManifest.xml
+          P=""
+          for p in INTERNET WAKE_LOCK FOREGROUND_SERVICE FOREGROUND_SERVICE_MEDIA_PLAYBACK POST_NOTIFICATIONS REQUEST_IGNORE_BATTERY_OPTIMIZATIONS; do
+            P="$P<uses-permission android:name=\"android.permission.$p\"/>\n"
+          done
+          sed -i "s#<application#${P}<application#" $M
+          sed -i 's#</application>#<service android:name="com.pravera.flutter_foreground_task.service.ForegroundService" android:foregroundServiceType="mediaPlayback" android:exported="false"/>\n    </application>#' $M
+          flutter build apk --release
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          files: app/build/app/outputs/flutter-apk/app-release.apk
