@@ -19,7 +19,7 @@ jobs:
       - name: Build
         run: |
           flutter create --org com.hotspot --project-name hotspot_music --platforms=android app
-          cp $(ls lib/main.dart main.dart 2>/dev/null | head -n 1) app/lib/main.dart
+          cp main.dart app/lib/main.dart
           cd app
           flutter pub add just_audio:^0.10.0 file_picker:^10.0.0 flutter_foreground_task:^9.0.0
           M=android/app/src/main/AndroidManifest.xml
